@@ -11,6 +11,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use clap::Parser;
+use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use nes_apu_core::audio::start_audio_stream;
 use nes_apu_core::cli::CliArgs;
 use nes_apu_core::ui::{
@@ -18,6 +20,25 @@ use nes_apu_core::ui::{
     trace::run_trace_mode,
     SystemSnapshot,
 };
+
+/// ターミナル raw モードの安全な復元用 RAII ガード
+struct RawModeGuard;
+
+impl RawModeGuard {
+    fn new() -> Option<Self> {
+        if enable_raw_mode().is_ok() {
+            Some(Self)
+        } else {
+            None
+        }
+    }
+}
+
+impl Drop for RawModeGuard {
+    fn drop(&mut self) {
+        let _ = disable_raw_mode();
+    }
+}
 
 fn main() {
     let args = CliArgs::parse();
@@ -47,12 +68,55 @@ fn main() {
 
     clear_screen();
 
+    let _raw_guard = if args.frames.is_none() {
+        RawModeGuard::new()
+    } else {
+        None
+    };
+
     let frame_interval = Duration::from_nanos(16_666_667); // 60fps
     let start_time = Instant::now();
     let mut frame_count = 0;
 
     loop {
         let t0 = Instant::now();
+
+        // キーボード入力処理 (非ブロッキング: 1~5 キーで各チャンネルのミュート/発音切替)
+        while event::poll(Duration::from_millis(0)).unwrap_or(false) {
+            if let Ok(Event::Key(key)) = event::read() {
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Char('1') => {
+                            let mut sys = shared_system.lock().unwrap();
+                            sys.apu.toggle_mute_channel(0);
+                        }
+                        KeyCode::Char('2') => {
+                            let mut sys = shared_system.lock().unwrap();
+                            sys.apu.toggle_mute_channel(1);
+                        }
+                        KeyCode::Char('3') => {
+                            let mut sys = shared_system.lock().unwrap();
+                            sys.apu.toggle_mute_channel(2);
+                        }
+                        KeyCode::Char('4') => {
+                            let mut sys = shared_system.lock().unwrap();
+                            sys.apu.toggle_mute_channel(3);
+                        }
+                        KeyCode::Char('5') => {
+                            let mut sys = shared_system.lock().unwrap();
+                            sys.apu.toggle_mute_channel(4);
+                        }
+                        KeyCode::Char('q') | KeyCode::Esc => {
+                            return;
+                        }
+                        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            return;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
 
         // オーディオ非再生時はメインスレッド側で 1/60 秒分 (44.1kHz * 1/60 = 735 サンプル) のクロックを進める
         let snapshot = {

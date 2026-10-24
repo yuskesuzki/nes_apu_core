@@ -50,4 +50,10 @@ fn test_channel_mute_and_solo() {
     let (p1_all, _, tri_all, _, _) = apu.sample_raw_5ch();
     assert!(p1_all > 0);
     assert!(tri_all > 0);
+
+    // Toggle mute
+    apu.toggle_mute_channel(0);
+    assert!(apu.channel_mute[0]);
+    apu.toggle_mute_channel(0);
+    assert!(!apu.channel_mute[0]);
 }

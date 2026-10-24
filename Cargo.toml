@@ -6,4 +6,6 @@ edition = "2024"
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
 cpal = "0.18.2"
+crossterm = "0.29.0"
 mos6502 = "0.10.1"
+unicode-width = "0.2.2"

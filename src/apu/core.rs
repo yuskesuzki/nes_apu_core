@@ -130,6 +130,13 @@ impl NesApuCore {
         }
     }
 
+    /// 指定チャンネルのミュート状態を反転
+    pub fn toggle_mute_channel(&mut self, ch: usize) {
+        if ch < 5 {
+            self.channel_mute[ch] = !self.channel_mute[ch];
+        }
+    }
+
     /// 指定チャンネルのみをソロ演奏 (他の全チャンネルをミュート)
     pub fn solo_channel(&mut self, ch: usize) {
         for i in 0..5 {

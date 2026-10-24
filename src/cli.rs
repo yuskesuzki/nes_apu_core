@@ -24,46 +24,6 @@ pub struct CliArgs {
     #[arg(long = "track", value_name = "N")]
     pub track: Option<u8>,
 
-    /// Mute comma-separated channels (e.g. --mute p2,noise,dmc)
-    #[arg(long = "mute", value_name = "CHANNELS", value_delimiter = ',')]
-    pub mute: Vec<String>,
-
-    /// Solo comma-separated channels (e.g. --solo p1 or --solo p1,tri)
-    #[arg(long = "solo", value_name = "CHANNELS", value_delimiter = ',')]
-    pub solo: Vec<String>,
-
-    /// Mute Pulse 1
-    #[arg(long = "no-p1", visible_alias = "mute-p1")]
-    pub no_p1: bool,
-    /// Mute Pulse 2
-    #[arg(long = "no-p2", visible_alias = "mute-p2")]
-    pub no_p2: bool,
-    /// Mute Triangle
-    #[arg(long = "no-tri", visible_aliases = ["mute-tri", "no-triangle", "mute-triangle"])]
-    pub no_tri: bool,
-    /// Mute Noise
-    #[arg(long = "no-noise", visible_aliases = ["mute-noise", "no-noi", "mute-noi"])]
-    pub no_noise: bool,
-    /// Mute DMC
-    #[arg(long = "no-dmc", visible_aliases = ["mute-dmc", "no-dpcm", "mute-dpcm"])]
-    pub no_dmc: bool,
-
-    /// Solo Pulse 1
-    #[arg(long = "only-p1", visible_alias = "solo-p1")]
-    pub only_p1: bool,
-    /// Solo Pulse 2
-    #[arg(long = "only-p2", visible_alias = "solo-p2")]
-    pub only_p2: bool,
-    /// Solo Triangle
-    #[arg(long = "only-tri", visible_aliases = ["solo-tri", "only-triangle", "solo-triangle"])]
-    pub only_tri: bool,
-    /// Solo Noise
-    #[arg(long = "only-noise", visible_aliases = ["solo-noise", "only-noi", "solo-noi"])]
-    pub only_noise: bool,
-    /// Solo DMC
-    #[arg(long = "only-dmc", visible_aliases = ["solo-dmc", "only-dpcm", "solo-dpcm"])]
-    pub only_dmc: bool,
-
     /// Analog filter profile: 'warm' (default: 5.5kHz), 'tv' (4.2kHz CRT), 'studio' (14kHz)
     #[arg(long = "profile", value_name = "NAME")]
     pub profile: Option<String>,
@@ -101,17 +61,6 @@ pub struct CliArgs {
     pub frames: Option<usize>,
 }
 
-fn parse_channel_name(s: &str) -> Option<usize> {
-    match s.trim().to_lowercase().as_str() {
-        "p1" | "pulse1" | "1" | "pulse_1" | "sq1" => Some(0),
-        "p2" | "pulse2" | "2" | "pulse_2" | "sq2" => Some(1),
-        "tri" | "triangle" | "3" | "tr" => Some(2),
-        "noise" | "noi" | "4" | "ns" => Some(3),
-        "dmc" | "dpcm" | "5" | "pcm" => Some(4),
-        _ => None,
-    }
-}
-
 impl CliArgs {
     /// 5-Step モード ($4017 bit 7 = 1) が指定されているかを判定します
     pub fn is_mode5(&self) -> bool {
@@ -129,52 +78,6 @@ impl CliArgs {
             }
         }
         false
-    }
-
-    /// `--mute` および `--solo` 系のオプションから 5 チャンネル分の消音マスクを計算します
-    pub fn compute_channel_mutes(&self) -> [bool; 5] {
-        let mut solo_set = Vec::new();
-        let mut mute_set = Vec::new();
-
-        for s in &self.solo {
-            if let Some(ch) = parse_channel_name(s) {
-                solo_set.push(ch);
-            }
-        }
-        if self.only_p1 { solo_set.push(0); }
-        if self.only_p2 { solo_set.push(1); }
-        if self.only_tri { solo_set.push(2); }
-        if self.only_noise { solo_set.push(3); }
-        if self.only_dmc { solo_set.push(4); }
-
-        for s in &self.mute {
-            if let Some(ch) = parse_channel_name(s) {
-                mute_set.push(ch);
-            }
-        }
-        if self.no_p1 { mute_set.push(0); }
-        if self.no_p2 { mute_set.push(1); }
-        if self.no_tri { mute_set.push(2); }
-        if self.no_noise { mute_set.push(3); }
-        if self.no_dmc { mute_set.push(4); }
-
-        let mut result = [false; 5];
-        if !solo_set.is_empty() {
-            result = [true; 5];
-            for ch in solo_set {
-                if ch < 5 {
-                    result[ch] = false;
-                }
-            }
-        }
-
-        for ch in mute_set {
-            if ch < 5 {
-                result[ch] = true;
-            }
-        }
-
-        result
     }
 
     /// CLI オプションに基づいて音源 (`SoundSource`) を生成します
@@ -200,7 +103,6 @@ impl CliArgs {
         let source = self.build_sound_source()?;
         let mut sys = ApuSystem::new(source);
 
-        sys.apu.channel_mute = self.compute_channel_mutes();
         sys.apu.filter_chain.bypass = self.filter_bypass;
 
         if let Some(ref prof) = self.profile {

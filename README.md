@@ -26,36 +26,16 @@ cargo run -- --audio --nsf path/to/music.nsf --track 3
 cargo run -- --audio --nsf path/to/music.nsf --filter-bypass
 ```
 
-### 3. チャンネル消音 (Mute) & 単独出力 (Solo) オプション
-特定のチャンネル（メロディのみ、ベースのみ、ドラム除外など）を指定して再生・消音できます。
+### 3. 演奏中のチャンネル消音 (Mute) 切り替えキー操作
+演奏中にキーボードの数字キー `1` 〜 `5` を押すことで、各チャンネルの消音（Mute）／発音（Play）をリアルタイムにトグル切り替えできます。
 ハードウェア内部シーケンサや 6502 の進行を止めることなく、非線形 DAC ミキサーへの出力レベルのみを安全にマスクするため、完全なクロック同期を維持したまま各トラックを個別確認できます。
 
-- **メロディ (Pulse 1) のみソロ試聴**:
-  ```bash
-  cargo run -- --audio --nsf path/to/music.nsf --solo p1
-  # または
-  cargo run -- --audio --nsf path/to/music.nsf --only-p1
-  ```
-- **ベース (Triangle) のみソロ試聴**:
-  ```bash
-  cargo run -- --audio --nsf path/to/music.nsf --solo tri
-  ```
-- **ハーモニー (Pulse 2) とドラム (Noise) を消音（メロディとベースのみ）**:
-  ```bash
-  cargo run -- --audio --nsf path/to/music.nsf --mute p2,noise
-  # または
-  cargo run -- --audio --nsf path/to/music.nsf --no-p2 --no-noise
-  ```
-- **複数チャンネルのソロ指定（メロディ ＋ ベースのみ同時出力）**:
-  ```bash
-  cargo run -- --audio --nsf path/to/music.nsf --solo p1,tri
-  ```
-- **対応チャンネル名**:
-  - Pulse 1: `p1`, `pulse1`, `1`
-  - Pulse 2: `p2`, `pulse2`, `2`
-  - Triangle: `tri`, `triangle`, `3`
-  - Noise: `noise`, `noi`, `4`
-  - DMC: `dmc`, `dpcm`, `5`
+- `1`: Pulse 1 (主旋律)
+- `2`: Pulse 2 (ハーモニー・アルペジオ)
+- `3`: Triangle (ベース)
+- `4`: Noise (ドラム・パーカッション)
+- `5`: DMC (サンプル再生)
+- `q` または `Esc`: 終了
 
 ### 4. 温かい音色調整・フィルターカスタマイズ
 - **マイルドで太いウォームトーン (デフォルト: 5.5kHz LPF)**:
