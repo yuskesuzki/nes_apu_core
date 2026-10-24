@@ -13,6 +13,8 @@ pub struct ApuSystem {
     pub source: Box<dyn SoundSource>,
     /// V-Blank (60Hz) サイクルアキュムレータ (0..29,780)
     pub vblank_cycle_counter: usize,
+    /// 再生一時停止フラグ
+    pub paused: bool,
 }
 
 impl ApuSystem {
@@ -24,7 +26,14 @@ impl ApuSystem {
             apu,
             source,
             vblank_cycle_counter: 0,
+            paused: false,
         }
+    }
+
+    /// 演奏の一時停止状態を反転します (一時停止中なら true を返す)
+    pub fn toggle_pause(&mut self) -> bool {
+        self.paused = !self.paused;
+        self.paused
     }
 
     /// 新しい音源に差し替えます

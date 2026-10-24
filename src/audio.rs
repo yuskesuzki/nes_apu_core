@@ -22,8 +22,13 @@ pub fn start_audio_stream(system: Arc<Mutex<ApuSystem>>) -> Option<cpal::Stream>
             stream_config,
             move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                 let mut sys = stream_sys.lock().unwrap();
+                let is_paused = sys.paused;
                 for frame in data.chunks_mut(channels_count) {
-                    let sample = sys.generate_audio_sample(sample_rate);
+                    let sample = if is_paused {
+                        0.0
+                    } else {
+                        sys.generate_audio_sample(sample_rate)
+                    };
                     for channel in frame.iter_mut() {
                         *channel = sample;
                     }

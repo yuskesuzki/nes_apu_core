@@ -106,6 +106,10 @@ fn main() {
                             let mut sys = shared_system.lock().unwrap();
                             sys.apu.toggle_mute_channel(4);
                         }
+                        KeyCode::Char(' ') => {
+                            let mut sys = shared_system.lock().unwrap();
+                            sys.toggle_pause();
+                        }
                         KeyCode::Char('q') | KeyCode::Esc => {
                             return;
                         }
@@ -121,7 +125,7 @@ fn main() {
         // オーディオ非再生時はメインスレッド側で 1/60 秒分 (44.1kHz * 1/60 = 735 サンプル) のクロックを進める
         let snapshot = {
             let mut sys = shared_system.lock().unwrap();
-            if !args.audio {
+            if !args.audio && !sys.paused {
                 for _ in 0..735 {
                     sys.generate_audio_sample(44100.0);
                 }

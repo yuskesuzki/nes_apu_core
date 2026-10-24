@@ -26,7 +26,7 @@ pub fn visual_width(s: &str) -> usize {
             continue;
         }
         if in_escape {
-            if ch == 'm' {
+            if ('@'..='~').contains(&ch) && ch != '[' {
                 in_escape = false;
             }
             continue;
@@ -95,12 +95,17 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
 
     print!("\x1b[H");
     print!("================================================================================\r\n");
-    print!("🕹  NES APU Hardware Core - Phase 5 Complete System Dashboard\r\n");
+    print!("🕹  NES APU Hardware Core - Phase 5 Complete System Dashboard\x1b[K\r\n");
     print!(
-        "    実時間: {:06.2}s | シミュレーション時間: {:06.2}s | CPU サイクル: {:010}\r\n",
+        "    実時間: {:06.2}s | シミュレーション時間: {:06.2}s | CPU サイクル: {:010}\x1b[K\r\n",
         snap.elapsed_real_secs, sim_time, a.total_cpu_cycles
     );
-    print!("    動作モード: {}\r\n", snap.mode_title);
+    let status_badge = if snap.is_paused {
+        " \x1b[1;33m[一時停止中 PAUSED]\x1b[0m"
+    } else {
+        ""
+    };
+    print!("    動作モード: {}{}\x1b[K\r\n", snap.mode_title, status_badge);
     print!("================================================================================\r\n");
 
     // --- 0. APU Frame Counter ($4017) ---
@@ -145,14 +150,23 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
     let m_tr = if a.channel_mute[2] { "\x1b[1;31mMUTE\x1b[0m" } else { "PLAY" };
     let m_ns = if a.channel_mute[3] { "\x1b[1;31mMUTE\x1b[0m" } else { "PLAY" };
     let m_dm = if a.channel_mute[4] { "\x1b[1;31mMUTE\x1b[0m" } else { "PLAY" };
+    let pause_guide = if snap.is_paused {
+        "\x1b[1;33mSpace:再開\x1b[0m"
+    } else {
+        "Space:一時停止"
+    };
     box_header("APU Status Register ($4015) 状態");
     box_line(&format!(
         "Ch: P1:[{}] P2:[{}] Tri:[{}] Noi:[{}] DMC:[{}] | IRQ: Frame:[{}] DMC:[{}]",
         p1_act, p2_act, tri_act, noi_act, dmc_act, f_irq, d_irq
     ));
     box_line(&format!(
-        "Mute[1-5]: P1:[{}] P2:[{}] Tri:[{}] Noi:[{}] DMC:[{}] (q:終了)",
+        "Mute[1-5]: P1:[{}] P2:[{}] Tri:[{}] Noi:[{}] DMC:[{}]",
         m_p1, m_p2, m_tr, m_ns, m_dm
+    ));
+    box_line(&format!(
+        "キー操作: [1-5] ミュート切替 | [{}] | [q] 終了",
+        pause_guide
     ));
     box_footer();
 

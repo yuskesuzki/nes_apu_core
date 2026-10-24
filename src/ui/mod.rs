@@ -25,6 +25,7 @@ pub struct SystemSnapshot {
     pub driver: Option<NesSoundDriver>,
     pub vblank_cycle_counter: usize,
     pub elapsed_real_secs: f64,
+    pub is_paused: bool,
 }
 
 impl SystemSnapshot {
@@ -36,6 +37,7 @@ impl SystemSnapshot {
             driver: sys.source.driver_state().cloned(),
             vblank_cycle_counter: sys.vblank_cycle_counter,
             elapsed_real_secs,
+            is_paused: sys.paused,
         }
     }
 }
