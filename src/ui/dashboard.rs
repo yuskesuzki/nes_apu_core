@@ -168,6 +168,22 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
         "キー操作: [1-5] ミュート切替 | [{}] | [q] 終了",
         pause_guide
     ));
+    let se_z_str = match snap.se_track_z {
+        Some(t) => format!("Trk {:2}", t),
+        None => "未設定".to_string(),
+    };
+    let se_x_str = match snap.se_track_x {
+        Some(t) => format!("Trk {:2}", t),
+        None => "未設定".to_string(),
+    };
+    let se_status = match snap.se_current_track {
+        Some(t) => format!("\x1b[1;33m[SE 再生中: Trk {}]\x1b[0m", t),
+        None => "[SE 停止中]".to_string(),
+    };
+    box_line(&format!(
+        "効果音: [z] SE-Z ({}) | [x] SE-X ({}) | [c] SE停止 | {}",
+        se_z_str, se_x_str, se_status
+    ));
     box_footer();
 
     // --- 1. Pulse 1 ---
@@ -197,11 +213,14 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
     } else {
         "発音中"
     };
-    let p1_header = if a.channel_mute[0] {
-        "Pulse 1 (矩形波 1) \x1b[1;31m[MUTE]\x1b[0m"
+    let p1_tag = if a.channel_hijacked[0] {
+        " \x1b[1;33m[SE 乗っ取り中]\x1b[0m"
+    } else if a.channel_mute[0] {
+        " \x1b[1;31m[MUTE]\x1b[0m"
     } else {
-        "Pulse 1 (矩形波 1)"
+        ""
     };
+    let p1_header = format!("Pulse 1 (矩形波 1){}", p1_tag);
     let p1_out_meter = if a.channel_mute[0] {
         format!(
             "{} \x1b[1;31m[消音 MUTE]\x1b[0m (内部生値: {:2})",
@@ -212,7 +231,7 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
         print_meter(p1.output(), 15)
     };
 
-    box_header(p1_header);
+    box_header(&p1_header);
     box_line(&format!(
         "タイマー: {:4} ({:5.1} Hz) -> カウンタ: {:4} / {:4} | シーケンサ: Step {:1}/7",
         p1.timer_period, p1_freq, p1.timer, p1.timer_period, p1.sequencer_step
@@ -258,11 +277,14 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
     } else {
         "発音中"
     };
-    let p2_header = if a.channel_mute[1] {
-        "Pulse 2 (矩形波 2) \x1b[1;31m[MUTE]\x1b[0m"
+    let p2_tag = if a.channel_hijacked[1] {
+        " \x1b[1;33m[SE 乗っ取り中]\x1b[0m"
+    } else if a.channel_mute[1] {
+        " \x1b[1;31m[MUTE]\x1b[0m"
     } else {
-        "Pulse 2 (矩形波 2)"
+        ""
     };
+    let p2_header = format!("Pulse 2 (矩形波 2){}", p2_tag);
     let p2_out_meter = if a.channel_mute[1] {
         format!(
             "{} \x1b[1;31m[消音 MUTE]\x1b[0m (内部生値: {:2})",
@@ -273,7 +295,7 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
         print_meter(p2.output(), 15)
     };
 
-    box_header(p2_header);
+    box_header(&p2_header);
     box_line(&format!(
         "タイマー: {:4} ({:5.1} Hz) -> カウンタ: {:4} / {:4} | シーケンサ: Step {:1}/7",
         p2.timer_period, p2_freq, p2.timer, p2.timer_period, p2.sequencer_step
@@ -300,11 +322,14 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
     } else {
         "発音中"
     };
-    let tri_header = if a.channel_mute[2] {
-        "Triangle (三角波) \x1b[1;31m[MUTE]\x1b[0m"
+    let tri_tag = if a.channel_hijacked[2] {
+        " \x1b[1;33m[SE 乗っ取り中]\x1b[0m"
+    } else if a.channel_mute[2] {
+        " \x1b[1;31m[MUTE]\x1b[0m"
     } else {
-        "Triangle (三角波)"
+        ""
     };
+    let tri_header = format!("Triangle (三角波){}", tri_tag);
     let tri_out_meter = if a.channel_mute[2] {
         format!(
             "{} \x1b[1;31m[消音 MUTE]\x1b[0m (内部生値: {:2})",
@@ -315,7 +340,7 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
         print_meter(tri.output(), 15)
     };
 
-    box_header(tri_header);
+    box_header(&tri_header);
     box_line(&format!(
         "タイマー: {:4} ({:5.1} Hz) -> カウンタ: {:4} (直結) | シーケンサ: Step {:2}/31",
         tri.timer_period, tri_freq, tri.timer, tri.sequencer_step
@@ -351,11 +376,14 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
     } else {
         "発音中"
     };
-    let noi_header = if a.channel_mute[3] {
-        "Noise (ノイズ) \x1b[1;31m[MUTE]\x1b[0m"
+    let noi_tag = if a.channel_hijacked[3] {
+        " \x1b[1;33m[SE 乗っ取り中]\x1b[0m"
+    } else if a.channel_mute[3] {
+        " \x1b[1;31m[MUTE]\x1b[0m"
     } else {
-        "Noise (ノイズ)"
+        ""
     };
+    let noi_header = format!("Noise (ノイズ){}", noi_tag);
     let noi_out_meter = if a.channel_mute[3] {
         format!(
             "{} \x1b[1;31m[消音 MUTE]\x1b[0m (内部生値: {:2})",
@@ -366,7 +394,7 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
         print_meter(noi.output(), 15)
     };
 
-    box_header(noi_header);
+    box_header(&noi_header);
     box_line(&format!(
         "LFSR: 0x{:04X} ({:015b}) | モード: {}",
         noi.shift_register, noi.shift_register, noi_mode_str
@@ -381,11 +409,14 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
     // --- 5. DMC ---
     let dmc = &a.dmc;
     let dmc_status_str = if dmc.bytes_remaining > 0 { "再生中" } else { "停止" };
-    let dmc_header = if a.channel_mute[4] {
-        "DMC (デルタ変調 PCM) \x1b[1;31m[MUTE]\x1b[0m"
+    let dmc_tag = if a.channel_hijacked[4] {
+        " \x1b[1;33m[SE 乗っ取り中]\x1b[0m"
+    } else if a.channel_mute[4] {
+        " \x1b[1;31m[MUTE]\x1b[0m"
     } else {
-        "DMC (デルタ変調 PCM)"
+        ""
     };
+    let dmc_header = format!("DMC (デルタ変調 PCM){}", dmc_tag);
     let dmc_out_meter = if a.channel_mute[4] {
         format!(
             "{} \x1b[1;31m[消音 MUTE]\x1b[0m (内部生値: {:3})",
@@ -396,7 +427,7 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
         print_meter_128(dmc.output(), 127)
     };
 
-    box_header(dmc_header);
+    box_header(&dmc_header);
     box_line(&format!(
         "Rate: Index {:2} ({} cyc) | アドレス: ${:04X} | 残り: {:3} bytes ({})",
         dmc.rate_index, dmc.rate_period, dmc.current_address, dmc.bytes_remaining, dmc_status_str

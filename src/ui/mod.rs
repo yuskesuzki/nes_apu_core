@@ -26,6 +26,9 @@ pub struct SystemSnapshot {
     pub vblank_cycle_counter: usize,
     pub elapsed_real_secs: f64,
     pub is_paused: bool,
+    pub se_track_z: Option<u8>,
+    pub se_track_x: Option<u8>,
+    pub se_current_track: Option<u8>,
 }
 
 impl SystemSnapshot {
@@ -38,6 +41,9 @@ impl SystemSnapshot {
             vblank_cycle_counter: sys.vblank_cycle_counter,
             elapsed_real_secs,
             is_paused: sys.paused,
+            se_track_z: sys.se_track_z,
+            se_track_x: sys.se_track_x,
+            se_current_track: sys.se_current_track,
         }
     }
 }

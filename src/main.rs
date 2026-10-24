@@ -110,6 +110,20 @@ fn main() {
                             let mut sys = shared_system.lock().unwrap();
                             sys.toggle_pause();
                         }
+                        KeyCode::Char('z') => {
+                            let mut sys = shared_system.lock().unwrap();
+                            let trk = sys.se_track_z;
+                            sys.trigger_se(trk);
+                        }
+                        KeyCode::Char('x') => {
+                            let mut sys = shared_system.lock().unwrap();
+                            let trk = sys.se_track_x;
+                            sys.trigger_se(trk);
+                        }
+                        KeyCode::Char('c') if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            let mut sys = shared_system.lock().unwrap();
+                            sys.stop_se();
+                        }
                         KeyCode::Char('q') | KeyCode::Esc => {
                             return;
                         }

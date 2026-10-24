@@ -15,6 +15,25 @@ use crate::apu::triangle::TriangleChannel;
 
 pub const NTSC_CPU_CLOCK: f32 = 1_789_773.0;
 
+/// APU レジスタアドレスから対応するチャンネルインデックス (0..4: Pulse1, Pulse2, Tri, Noi, DMC) を判定
+pub fn register_to_channel(addr: u16) -> Option<usize> {
+    match addr {
+        0x4000..=0x4003 => Some(0),
+        0x4004..=0x4007 => Some(1),
+        0x4008..=0x400B => Some(2),
+        0x400C..=0x400F => Some(3),
+        0x4010..=0x4013 => Some(4),
+        _ => None,
+    }
+}
+
+/// レジスタ書き込み発信元（BGM または 効果音 SE）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RegisterWriteSource {
+    Bgm,
+    SoundEffect,
+}
+
 #[derive(Debug, Clone)]
 pub struct NesApuCore {
     pub pulse1: PulseChannel,
@@ -43,6 +62,18 @@ pub struct NesApuCore {
 
     /// $4015 レジスタキャッシュ
     pub status_reg: u8,
+
+    /// レジスタ書き込み発信元
+    pub write_source: RegisterWriteSource,
+
+    /// チャンネルごとの SE ハイジャック（乗っ取り）フラグ (Pulse 1, Pulse 2, Triangle, Noise, DMC)
+    pub channel_hijacked: [bool; 5],
+
+    /// BGM レジスタ書き込みキャッシュ ($4000..$401F)
+    pub bgm_register_cache: [u8; 0x20],
+
+    /// 現在フレームで SE からの書き込みがあったか
+    pub se_channel_touched: [bool; 5],
 }
 
 impl Default for NesApuCore {
@@ -60,6 +91,10 @@ impl Default for NesApuCore {
             apu_cycle_toggle: false,
             total_cpu_cycles: 0,
             status_reg: 0,
+            write_source: RegisterWriteSource::Bgm,
+            channel_hijacked: [false; 5],
+            bgm_register_cache: [0; 0x20],
+            se_channel_touched: [false; 5],
         }
     }
 }
@@ -256,7 +291,91 @@ impl NesApuCore {
     }
 
     /// 実機 APU レジスタ書き込み ($4000〜$4017)
+    /// ※ BGM と SE のチャンネル乗っ取り（ハイジャック）調停を自動で行います
     pub fn write_register(&mut self, addr: u16, val: u8) {
+        let ch_opt = register_to_channel(addr);
+
+        match self.write_source {
+            RegisterWriteSource::Bgm => {
+                if (0x4000..0x4020).contains(&addr) {
+                    self.bgm_register_cache[(addr - 0x4000) as usize] = val;
+                }
+                // もしそのチャンネルが SE にハイジャック中なら、ハードウェア書き込みはスキップ
+                if let Some(ch) = ch_opt {
+                    if self.channel_hijacked[ch] {
+                        return;
+                    }
+                }
+                self.write_raw_register(addr, val);
+            }
+            RegisterWriteSource::SoundEffect => {
+                if let Some(ch) = ch_opt {
+                    self.channel_hijacked[ch] = true;
+                    self.se_channel_touched[ch] = true;
+                }
+                // $4015 の場合は SE が使用していない BGM チャンネルのフラグを保護
+                if addr == 0x4015 {
+                    let mut merged_val = val;
+                    for ch in 0..5 {
+                        if !self.channel_hijacked[ch] {
+                            let bit = 1 << ch;
+                            let bgm_bit = self.bgm_register_cache[0x15] & bit;
+                            merged_val = (merged_val & !bit) | bgm_bit;
+                        }
+                    }
+                    self.write_raw_register(addr, merged_val);
+                } else {
+                    self.write_raw_register(addr, val);
+                }
+            }
+        }
+    }
+
+    /// SE ハイジャックを解除し、キャッシュされた BGM のレジスタ値を APU ハードウェアへ復元
+    pub fn restore_channel_from_bgm(&mut self, ch: usize) {
+        if ch >= 5 {
+            return;
+        }
+        self.channel_hijacked[ch] = false;
+        self.se_channel_touched[ch] = false;
+
+        let base_addr = match ch {
+            0 => 0x4000,
+            1 => 0x4004,
+            2 => 0x4008,
+            3 => 0x400C,
+            4 => 0x4010,
+            _ => return,
+        };
+
+        // 4 バイトのレジスタを再書き込み
+        for i in 0..4 {
+            let addr = base_addr + i;
+            let val = self.bgm_register_cache[(addr - 0x4000) as usize];
+            self.write_raw_register(addr, val);
+        }
+
+        // $4015 の BGM 状態を反映
+        let bgm_status = self.bgm_register_cache[0x15];
+        let ch_bit = 1 << ch;
+        let mut cur_status = self.status_reg;
+        if (bgm_status & ch_bit) != 0 {
+            cur_status |= ch_bit;
+        } else {
+            cur_status &= !ch_bit;
+        }
+        self.write_raw_register(0x4015, cur_status);
+    }
+
+    /// 全チャンネルの SE ハイジャックを解除して BGM に復元
+    pub fn restore_all_channels(&mut self) {
+        for ch in 0..5 {
+            self.restore_channel_from_bgm(ch);
+        }
+    }
+
+    /// ハードウェアへの直接レジスタ書き込み ($4000〜$4017)
+    pub fn write_raw_register(&mut self, addr: u16, val: u8) {
         match addr {
             // Pulse 1 ($4000..$4003)
             0x4000..=0x4003 => {

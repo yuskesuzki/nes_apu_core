@@ -59,6 +59,14 @@ pub struct CliArgs {
     /// Run for N frames and exit (useful for headless testing)
     #[arg(long = "frames", value_name = "N")]
     pub frames: Option<usize>,
+
+    /// Sound effect track number in NSF for 'z' key (1-based)
+    #[arg(long = "se-z", value_name = "TRACK")]
+    pub se_z: Option<u8>,
+
+    /// Sound effect track number in NSF for 'x' key (1-based)
+    #[arg(long = "se-x", value_name = "TRACK")]
+    pub se_x: Option<u8>,
 }
 
 impl CliArgs {
@@ -100,8 +108,45 @@ impl CliArgs {
 
     /// CLI オプションを反映した `ApuSystem` を構築して返します
     pub fn build_system(&self) -> Result<ApuSystem, String> {
-        let source = self.build_sound_source()?;
-        let mut sys = ApuSystem::new(source);
+        let nsf = NsfSource::from_file(&self.nsf, self.track)
+            .map_err(|err| format!("Error loading NSF {}: {}", self.nsf.display(), err))?;
+        let total_songs = nsf.header.total_songs;
+
+        // SE トラックのバリデーション
+        if let Some(z) = self.se_z {
+            if z < 1 || z > total_songs {
+                return Err(format!(
+                    "無効な SE-Z トラック番号: {} (有効範囲: 1..={})",
+                    z, total_songs
+                ));
+            }
+        }
+        if let Some(x) = self.se_x {
+            if x < 1 || x > total_songs {
+                return Err(format!(
+                    "無効な SE-X トラック番号: {} (有効範囲: 1..={})",
+                    x, total_songs
+                ));
+            }
+        }
+
+        let mut source: Box<dyn SoundSource> = Box::new(nsf);
+
+        // リード音色のデューティ比オーバーライド (ドライバ音源時)
+        if let Some(d) = self.duty {
+            if let Some(drv) = source.driver_state_mut() {
+                if !drv.voices.is_empty() {
+                    drv.voices[0].duty_macro = vec![d & 3];
+                }
+            }
+        }
+
+        let mut sys = ApuSystem::new_with_se(
+            source,
+            self.nsf.clone(),
+            self.se_z,
+            self.se_x,
+        );
 
         sys.apu.filter_chain.bypass = self.filter_bypass;
 

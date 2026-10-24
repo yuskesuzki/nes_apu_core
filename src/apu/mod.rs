@@ -14,7 +14,7 @@ pub mod pulse;
 pub mod sweep;
 pub mod triangle;
 
-pub use core::{NesApuCore, NTSC_CPU_CLOCK};
+pub use core::{register_to_channel, NesApuCore, RegisterWriteSource, NTSC_CPU_CLOCK};
 pub use dmc::{DmcChannel, DMC_NTSC_RATE_TABLE};
 pub use envelope::EnvelopeGenerator;
 pub use filter::{AnalogFilterChain, HighPassFilter, LowPassFilter, NonlinearMixer};

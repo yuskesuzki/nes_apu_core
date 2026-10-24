@@ -56,7 +56,23 @@ cargo run -- --audio --nsf path/to/music.nsf --filter-bypass
   cargo run -- --audio --nsf path/to/music.nsf --duty 2
   ```
 
-### 5. 各チャンネル波形の CUI モニターデモ (`waveform_demo`)
+### 5. 効果音 (SE) キー割り当てと実機調停エミュレーション
+NSF 内の効果音トラックを `z` / `x` キーに割り当て、BGM 演奏中に効果音を重ねて再生できます。
+実機ファミコン同様、SE が使っているチャンネルのみが一時的に乗っ取られ（ハイジャック）、SE 終了後に自動で BGM に復元（レストア）されます。
+```bash
+# 例: Track 1 を BGM 再生しつつ、z に効果音 Track 10、x に効果音 Track 12 を割り当て
+cargo run -- --audio --nsf path/to/music.nsf --track 1 --se-z 10 --se-x 12
+```
+
+**キーボード操作**:
+- `1`〜`5`: 各チャンネルのミュート / 再生切り替え (1: P1, 2: P2, 3: Tri, 4: Noi, 5: DMC)
+- `Space`: 演奏の一時停止 / 再開
+- `z`: SE-Z 効果音のワンショット再生
+- `x`: SE-X 効果音のワンショット再生
+- `c`: 再生中の効果音を即座に停止＆全チャンネルを BGM に復元
+- `q` / `Esc`: 終了
+
+### 6. 各チャンネル波形の CUI モニターデモ (`waveform_demo`)
 各チャンネルの出力電圧推移をターミナル上に波形として表示します。
 ```bash
 # 1行スパークライン形式で表示
@@ -66,7 +82,7 @@ cargo run --example waveform_demo -- --nsf path/to/music.nsf
 cargo run --example waveform_demo -- --nsf path/to/music.nsf --oscilloscope
 ```
 
-### 6. ハードウェア検証・実行オプション
+### 7. ハードウェア検証・実行オプション
 - **Frame Counter 5-Step モード (192Hz, IRQなし)**: `cargo run -- --nsf path/to/music.nsf --mode 5` (または `--5-step`)
 - **1 サイクル刻みトレース**: `cargo run -- --nsf path/to/music.nsf --trace`
 - **フレーム数指定**: `cargo run -- --nsf path/to/music.nsf --frames 1`
@@ -79,4 +95,4 @@ cargo run --example waveform_demo -- --nsf path/to/music.nsf --oscilloscope
 cargo test
 ```
 
-全 49 項目のハードウェア＆ドライバ検証テスト（Mute/Solo, Driver, Filter, DMC, Status $4015, Frame Counter, Envelope, Sweep, Length Counter, Linear Counter, Pulse, Triangle, Noise）がすべて PASS します。
+全 50 項目のハードウェア＆ドライバ検証テスト（SE ハイジャック調停, Mute/Solo, Driver, Filter, DMC, Status $4015, Frame Counter, Envelope, Sweep, Length Counter, Linear Counter, Pulse, Triangle, Noise）がすべて PASS します。
