@@ -115,9 +115,7 @@ impl Default for NesSoundDriver {
 
 impl NesSoundDriver {
     pub fn new() -> Self {
-        let mut driver = Self::default();
-        driver.load_demo_song();
-        driver
+        Self::default()
     }
 
     /// NTRK コンテナ形式バイナリ (4チャンネルまたは5チャンネル) をロード
@@ -153,69 +151,6 @@ impl NesSoundDriver {
 
         self.is_playing = true;
         Ok(())
-    }
-
-    /// デモ曲 (ファミコン風ポップス) をロード
-    pub fn load_demo_song(&mut self) {
-        let c4 = 36u8;
-        let g4 = 43u8;
-        let a4 = 45u8;
-        let c5 = 48u8;
-        let d5 = 50u8;
-        let e5 = 52u8;
-
-        // Track 0: Pulse 1 (主旋律)
-        let t0 = vec![
-            0x80, // Voice 0 (デューティ変調リード)
-            e5, 12, d5, 12, c5, 24, g4, 12, a4, 12, c5, 24, d5, 12, e5, 12, d5, 24, g4, 24, e5,
-            12, d5, 12, c5, 24, g4, 12, a4, 12, c5, 24, d5, 12, c5, 12, c5, 36, 0x7F, 12, 0xFE,
-            0x00, 0x00, // ループ
-        ];
-
-        // Track 1: Pulse 2 (疑似和音アルペジオ)
-        let t1 = vec![
-            0x81,
-            c4,
-            48,
-            0x81,
-            a4 - 12,
-            48,
-            0x81,
-            g4 - 12,
-            48,
-            0x81,
-            c4,
-            48,
-            0xFE,
-            0x00,
-            0x00,
-        ];
-
-        // Track 2: Triangle (階段波ベース)
-        let c2 = 12u8;
-        let a2 = 21u8;
-        let g2 = 19u8;
-        let t2 = vec![
-            0x83, // Voice 3 (三角波ベース)
-            c2, 12, 0x7F, 12, c2, 12, 0x7F, 12, a2, 12, 0x7F, 12, a2, 12, 0x7F, 12, g2, 12, 0x7F,
-            12, g2, 12, 0x7F, 12, c2, 12, 0x7F, 12, c2, 24, 0xFE, 0x00, 0x00,
-        ];
-
-        // Track 3: Noise (スネア＆ハイハット)
-        let t3 = vec![
-            0x85, 4, 12, 0x84, 8, 12, 0x85, 4, 12, 0x84, 8, 12, 0x85, 4, 12, 0x84, 8, 12, 0x85, 4,
-            12, 0x84, 8, 12, 0x85, 4, 12, 0x84, 8, 12, 0x85, 4, 12, 0x84, 8, 12, 0x85, 4, 12, 0x84,
-            8, 12, 0x84, 8, 24, 0xFE, 0x00, 0x00,
-        ];
-
-        self.reset();
-        self.song_title = "8-bit Pop Chiptune".to_string();
-        self.bpm = 120;
-        self.bytecode[0] = t0;
-        self.bytecode[1] = t1;
-        self.bytecode[2] = t2;
-        self.bytecode[3] = t3;
-        self.is_playing = true;
     }
 
     pub fn reset(&mut self) {
