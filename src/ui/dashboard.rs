@@ -165,7 +165,7 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
         m_p1, m_p2, m_tr, m_ns, m_dm
     ));
     box_line(&format!(
-        "キー操作: [1-5] ミュート切替 | [{}] | [q] 終了",
+        "キー操作: [1-5] ミュート | [Shift+t] 曲選択 | [{}] | [q] 終了",
         pause_guide
     ));
     let se_z_str = match snap.se_track_z {
@@ -188,13 +188,23 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
 
     // ダイアログが開いている場合は専用の操作ボックスを表示
     if let Some(ref dialog) = snap.se_dialog {
-        let title = match dialog.target {
-            crate::ui::SeSelectionTarget::Z => "🎵 SE-Z (zキー) 効果音トラック選択",
-            crate::ui::SeSelectionTarget::X => "🎵 SE-X (xキー) 効果音トラック選択",
+        let (title, guide) = match dialog.target {
+            crate::ui::TrackDialogTarget::Bgm => (
+                "🎵 BGM 演奏トラック選択",
+                "  左右キー (← / →) で演奏する BGM トラックを選択してください",
+            ),
+            crate::ui::TrackDialogTarget::Z => (
+                "🎵 SE-Z (zキー) 効果音トラック選択",
+                "  左右キー (← / →) で割り当てる効果音トラックを選択してください",
+            ),
+            crate::ui::TrackDialogTarget::X => (
+                "🎵 SE-X (xキー) 効果音トラック選択",
+                "  左右キー (← / →) で割り当てる効果音トラックを選択してください",
+            ),
         };
         box_header(title);
         box_line("");
-        box_line("  左右キー (← / →) で割り当てる効果音トラックを選択してください");
+        box_line(guide);
         box_line("");
         let track_display = format!("◀   Track  {:02} / {:02}   ▶", dialog.selected_track, dialog.total_tracks);
         let track_pad = 75usize.saturating_sub(visual_width(&track_display));
@@ -202,7 +212,10 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
         let t_right = track_pad - t_left;
         box_line(&format!("{:l$}{}{:r$}", "", track_display, "", l = t_left, r = t_right));
         box_line("");
-        let ctrl_display = "[Space]: 試聴再生  |  [Enter]: 確定  |  [Esc]: 取消";
+        let ctrl_display = match dialog.target {
+            crate::ui::TrackDialogTarget::Bgm => "[Space]: 試聴切替  |  [Enter]: 確定  |  [Esc]: 取消 (元に戻す)",
+            _ => "[Space]: 試聴再生  |  [Enter]: 確定  |  [Esc]: 取消",
+        };
         let ctrl_pad = 75usize.saturating_sub(visual_width(ctrl_display));
         let c_left = ctrl_pad / 2;
         let c_right = ctrl_pad - c_left;

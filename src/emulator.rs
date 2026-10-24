@@ -25,6 +25,8 @@ pub struct ApuSystem {
     pub nsf_path: Option<PathBuf>,
     /// NSF の総トラック数 (デフォルト: 1)
     pub total_tracks: u8,
+    /// 現在演奏中の BGM トラック番号 (1-based, デフォルト: 1)
+    pub current_bgm_track: u8,
     /// 'z' キーに割り当てられた SE トラック番号 (1-based)
     pub se_track_z: Option<u8>,
     /// 'x' キーに割り当てられた SE トラック番号 (1-based)
@@ -50,6 +52,7 @@ impl ApuSystem {
             paused: false,
             nsf_path: None,
             total_tracks: 1,
+            current_bgm_track: 1,
             se_track_z: None,
             se_track_x: None,
             se_current_track: None,
@@ -63,6 +66,7 @@ impl ApuSystem {
         mut source: Box<dyn SoundSource>,
         nsf_path: PathBuf,
         total_tracks: u8,
+        current_bgm_track: u8,
         se_track_z: Option<u8>,
         se_track_x: Option<u8>,
     ) -> Self {
@@ -76,6 +80,7 @@ impl ApuSystem {
             paused: false,
             nsf_path: Some(nsf_path),
             total_tracks: total_tracks.max(1),
+            current_bgm_track: current_bgm_track.clamp(1, total_tracks.max(1)),
             se_track_z,
             se_track_x,
             se_current_track: None,
@@ -95,6 +100,22 @@ impl ApuSystem {
         source.init(&mut self.apu);
         self.source = source;
         self.vblank_cycle_counter = 0;
+    }
+
+    /// BGM 演奏トラックを指定された番号に切り替えます
+    pub fn switch_bgm_track(&mut self, track: u8) {
+        let t = track.clamp(1, self.total_tracks);
+        if let Some(ref path) = self.nsf_path {
+            if let Ok(mut nsf) = NsfSource::from_file(path, Some(t)) {
+                self.stop_se();
+                // チャンネルの消音とレストアを行ってから新曲初期化
+                self.apu.restore_all_channels();
+                nsf.init(&mut self.apu);
+                self.source = Box::new(nsf);
+                self.vblank_cycle_counter = 0;
+                self.current_bgm_track = t;
+            }
+        }
     }
 
     /// 指定したトラック番号の効果音（SE）をトリガー（再生開始）します

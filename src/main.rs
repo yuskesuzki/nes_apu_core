@@ -18,7 +18,7 @@ use nes_apu_core::cli::CliArgs;
 use nes_apu_core::ui::{
     dashboard::{clear_screen, render_dashboard},
     trace::run_trace_mode,
-    SeDialogState, SeSelectionTarget, SystemSnapshot,
+    SeDialogState, TrackDialogTarget, SystemSnapshot,
 };
 
 /// ターミナル raw モードの安全な復元用 RAII ガード
@@ -93,6 +93,9 @@ fn main() {
 
                     // ダイアログ表示中のキー操作
                     if let Some(ref mut d) = dialog_state {
+                        let is_shift_t = key.code == KeyCode::Char('T')
+                            || ((key.code == KeyCode::Char('t') || key.code == KeyCode::Char('T'))
+                                && key.modifiers.contains(KeyModifiers::SHIFT));
                         let is_shift_z = key.code == KeyCode::Char('Z')
                             || ((key.code == KeyCode::Char('z') || key.code == KeyCode::Char('Z'))
                                 && key.modifiers.contains(KeyModifiers::SHIFT));
@@ -100,16 +103,25 @@ fn main() {
                             || ((key.code == KeyCode::Char('x') || key.code == KeyCode::Char('X'))
                                 && key.modifiers.contains(KeyModifiers::SHIFT));
 
+                        if is_shift_t {
+                            let sys = shared_system.lock().unwrap();
+                            d.target = TrackDialogTarget::Bgm;
+                            d.selected_track = sys.current_bgm_track;
+                            d.original_track = sys.current_bgm_track;
+                            continue;
+                        }
                         if is_shift_z {
                             let sys = shared_system.lock().unwrap();
-                            d.target = SeSelectionTarget::Z;
+                            d.target = TrackDialogTarget::Z;
                             d.selected_track = sys.se_track_z.unwrap_or(1);
+                            d.original_track = d.selected_track;
                             continue;
                         }
                         if is_shift_x {
                             let sys = shared_system.lock().unwrap();
-                            d.target = SeSelectionTarget::X;
+                            d.target = TrackDialogTarget::X;
                             d.selected_track = sys.se_track_x.unwrap_or(if d.total_tracks >= 2 { 2 } else { 1 });
+                            d.original_track = d.selected_track;
                             continue;
                         }
 
@@ -129,21 +141,37 @@ fn main() {
                                 };
                             }
                             KeyCode::Char(' ') => {
-                                // 選択中のトラックを試聴プレビュー再生
                                 let mut sys = shared_system.lock().unwrap();
-                                sys.trigger_se(Some(d.selected_track));
+                                match d.target {
+                                    TrackDialogTarget::Bgm => {
+                                        // 選択中のトラックに即座に切り替えて試聴！
+                                        sys.switch_bgm_track(d.selected_track);
+                                    }
+                                    _ => {
+                                        // SE を試聴プレビュー再生
+                                        sys.trigger_se(Some(d.selected_track));
+                                    }
+                                }
                             }
                             KeyCode::Enter => {
                                 // 確定
                                 let mut sys = shared_system.lock().unwrap();
                                 match d.target {
-                                    SeSelectionTarget::Z => sys.se_track_z = Some(d.selected_track),
-                                    SeSelectionTarget::X => sys.se_track_x = Some(d.selected_track),
+                                    TrackDialogTarget::Bgm => {
+                                        sys.switch_bgm_track(d.selected_track);
+                                    }
+                                    TrackDialogTarget::Z => sys.se_track_z = Some(d.selected_track),
+                                    TrackDialogTarget::X => sys.se_track_x = Some(d.selected_track),
                                 }
                                 dialog_state = None;
                             }
                             KeyCode::Esc | KeyCode::Char('q') => {
                                 // 取消（ダイアログを閉じる）
+                                if d.target == TrackDialogTarget::Bgm && d.selected_track != d.original_track {
+                                    // Space 試聴等で変わっていた場合は元のトラックに戻す
+                                    let mut sys = shared_system.lock().unwrap();
+                                    sys.switch_bgm_track(d.original_track);
+                                }
                                 dialog_state = None;
                             }
                             _ => {}
@@ -152,6 +180,9 @@ fn main() {
                     }
 
                     // 通常演奏時のキー操作
+                    let is_shift_t = key.code == KeyCode::Char('T')
+                        || ((key.code == KeyCode::Char('t') || key.code == KeyCode::Char('T'))
+                            && key.modifiers.contains(KeyModifiers::SHIFT));
                     let is_shift_z = key.code == KeyCode::Char('Z')
                         || ((key.code == KeyCode::Char('z') || key.code == KeyCode::Char('Z'))
                             && key.modifiers.contains(KeyModifiers::SHIFT));
@@ -159,14 +190,28 @@ fn main() {
                         || ((key.code == KeyCode::Char('x') || key.code == KeyCode::Char('X'))
                             && key.modifiers.contains(KeyModifiers::SHIFT));
 
+                    if is_shift_t {
+                        let sys = shared_system.lock().unwrap();
+                        let total = sys.total_tracks;
+                        let cur = sys.current_bgm_track;
+                        dialog_state = Some(SeDialogState {
+                            target: TrackDialogTarget::Bgm,
+                            selected_track: cur,
+                            total_tracks: total,
+                            original_track: cur,
+                        });
+                        continue;
+                    }
+
                     if is_shift_z {
                         let sys = shared_system.lock().unwrap();
                         let total = sys.total_tracks;
                         let cur = sys.se_track_z.unwrap_or(1);
                         dialog_state = Some(SeDialogState {
-                            target: SeSelectionTarget::Z,
+                            target: TrackDialogTarget::Z,
                             selected_track: cur,
                             total_tracks: total,
+                            original_track: cur,
                         });
                         continue;
                     }
@@ -176,9 +221,10 @@ fn main() {
                         let total = sys.total_tracks;
                         let cur = sys.se_track_x.unwrap_or(if total >= 2 { 2 } else { 1 });
                         dialog_state = Some(SeDialogState {
-                            target: SeSelectionTarget::X,
+                            target: TrackDialogTarget::X,
                             selected_track: cur,
                             total_tracks: total,
+                            original_track: cur,
                         });
                         continue;
                     }

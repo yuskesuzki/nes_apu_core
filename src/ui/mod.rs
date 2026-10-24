@@ -17,22 +17,27 @@ pub use oscilloscope::{format_oscilloscope_panel, render_waveform_grid};
 pub use sparkline::{format_channel_sparkline, render_sparkline};
 pub use waveform_buffer::ChannelWaveformBuffer;
 
-/// SE トラック選択ダイアログの対象キー (Z または X)
+/// トラック選択ダイアログの対象 (BGM、SE-Z、SE-X)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SeSelectionTarget {
+pub enum TrackDialogTarget {
+    Bgm,
     Z,
     X,
 }
 
-/// SE トラック選択ダイアログの表示状態
+pub type SeSelectionTarget = TrackDialogTarget;
+
+/// トラック選択ダイアログの表示状態
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SeDialogState {
-    /// 選択対象のキー (Z または X)
-    pub target: SeSelectionTarget,
+    /// 選択対象 (BGM、SE-Z、SE-X)
+    pub target: TrackDialogTarget,
     /// 現在ダイアログ上で選択されているトラック番号 (1-based)
     pub selected_track: u8,
     /// NSF の総トラック数
     pub total_tracks: u8,
+    /// ダイアログを開いた時点の元のトラック番号（キャンセル復元用）
+    pub original_track: u8,
 }
 
 /// 描画用のシステム状態スナップショット（オーディオロックを最小限にするためクローンで保持）
@@ -45,6 +50,7 @@ pub struct SystemSnapshot {
     pub elapsed_real_secs: f64,
     pub is_paused: bool,
     pub total_tracks: u8,
+    pub current_bgm_track: u8,
     pub se_track_z: Option<u8>,
     pub se_track_x: Option<u8>,
     pub se_current_track: Option<u8>,
@@ -66,6 +72,7 @@ impl SystemSnapshot {
             elapsed_real_secs,
             is_paused: sys.paused,
             total_tracks: sys.total_tracks,
+            current_bgm_track: sys.current_bgm_track,
             se_track_z: sys.se_track_z,
             se_track_x: sys.se_track_x,
             se_current_track: sys.se_current_track,

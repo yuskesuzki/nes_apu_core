@@ -103,6 +103,7 @@ impl CliArgs {
         let nsf = NsfSource::from_file(&self.nsf, self.track)
             .map_err(|err| format!("Error loading NSF {}: {}", self.nsf.display(), err))?;
         let total_songs = nsf.header.total_songs;
+        let starting_song = nsf.header.starting_song;
 
         let mut source: Box<dyn SoundSource> = Box::new(nsf);
 
@@ -115,6 +116,9 @@ impl CliArgs {
             }
         }
 
+        // 初期 BGM トラック番号
+        let current_bgm_track = self.track.unwrap_or(starting_song).clamp(1, total_songs);
+
         // SE キーの初期デフォルト割り当て (Z: トラック 1, X: トラック 2 (存在する場合))
         let default_se_z = Some(1);
         let default_se_x = Some(if total_songs >= 2 { 2 } else { 1 });
@@ -123,6 +127,7 @@ impl CliArgs {
             source,
             self.nsf.clone(),
             total_songs,
+            current_bgm_track,
             default_se_z,
             default_se_x,
         );
