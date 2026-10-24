@@ -59,14 +59,6 @@ pub struct CliArgs {
     /// Run for N frames and exit (useful for headless testing)
     #[arg(long = "frames", value_name = "N")]
     pub frames: Option<usize>,
-
-    /// Sound effect track number in NSF for 'z' key (1-based)
-    #[arg(long = "se-z", value_name = "TRACK")]
-    pub se_z: Option<u8>,
-
-    /// Sound effect track number in NSF for 'x' key (1-based)
-    #[arg(long = "se-x", value_name = "TRACK")]
-    pub se_x: Option<u8>,
 }
 
 impl CliArgs {
@@ -112,24 +104,6 @@ impl CliArgs {
             .map_err(|err| format!("Error loading NSF {}: {}", self.nsf.display(), err))?;
         let total_songs = nsf.header.total_songs;
 
-        // SE トラックのバリデーション
-        if let Some(z) = self.se_z {
-            if z < 1 || z > total_songs {
-                return Err(format!(
-                    "無効な SE-Z トラック番号: {} (有効範囲: 1..={})",
-                    z, total_songs
-                ));
-            }
-        }
-        if let Some(x) = self.se_x {
-            if x < 1 || x > total_songs {
-                return Err(format!(
-                    "無効な SE-X トラック番号: {} (有効範囲: 1..={})",
-                    x, total_songs
-                ));
-            }
-        }
-
         let mut source: Box<dyn SoundSource> = Box::new(nsf);
 
         // リード音色のデューティ比オーバーライド (ドライバ音源時)
@@ -141,11 +115,16 @@ impl CliArgs {
             }
         }
 
+        // SE キーの初期デフォルト割り当て (Z: トラック 1, X: トラック 2 (存在する場合))
+        let default_se_z = Some(1);
+        let default_se_x = Some(if total_songs >= 2 { 2 } else { 1 });
+
         let mut sys = ApuSystem::new_with_se(
             source,
             self.nsf.clone(),
-            self.se_z,
-            self.se_x,
+            total_songs,
+            default_se_z,
+            default_se_x,
         );
 
         sys.apu.filter_chain.bypass = self.filter_bypass;

@@ -23,6 +23,8 @@ pub struct ApuSystem {
     pub paused: bool,
     /// NSF ファイルパス（SE 再生時のインスタンス生成用）
     pub nsf_path: Option<PathBuf>,
+    /// NSF の総トラック数 (デフォルト: 1)
+    pub total_tracks: u8,
     /// 'z' キーに割り当てられた SE トラック番号 (1-based)
     pub se_track_z: Option<u8>,
     /// 'x' キーに割り当てられた SE トラック番号 (1-based)
@@ -47,6 +49,7 @@ impl ApuSystem {
             vblank_cycle_counter: 0,
             paused: false,
             nsf_path: None,
+            total_tracks: 1,
             se_track_z: None,
             se_track_x: None,
             se_current_track: None,
@@ -59,6 +62,7 @@ impl ApuSystem {
     pub fn new_with_se(
         mut source: Box<dyn SoundSource>,
         nsf_path: PathBuf,
+        total_tracks: u8,
         se_track_z: Option<u8>,
         se_track_x: Option<u8>,
     ) -> Self {
@@ -71,6 +75,7 @@ impl ApuSystem {
             vblank_cycle_counter: 0,
             paused: false,
             nsf_path: Some(nsf_path),
+            total_tracks: total_tracks.max(1),
             se_track_z,
             se_track_x,
             se_current_track: None,

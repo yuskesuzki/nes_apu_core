@@ -44,8 +44,6 @@ fn main() {
         mode5: false,
         mode4: false,
         frames: None,
-        se_z: None,
-        se_x: None,
     };
 
     let mut sys = match cli_args.build_system() {

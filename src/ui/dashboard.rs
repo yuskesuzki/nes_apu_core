@@ -177,14 +177,39 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
         None => "未設定".to_string(),
     };
     let se_status = match snap.se_current_track {
-        Some(t) => format!("\x1b[1;33m[SE 再生中: Trk {}]\x1b[0m", t),
-        None => "[SE 停止中]".to_string(),
+        Some(t) => format!(" \x1b[1;33m[SE:Trk {}]\x1b[0m", t),
+        None => "".to_string(),
     };
     box_line(&format!(
-        "効果音: [z] SE-Z ({}) | [x] SE-X ({}) | [c] SE停止 | {}",
+        "効果音: [z] Z:{} | [x] X:{} | [Shift+z/x] 割当 | [c] 停止{}",
         se_z_str, se_x_str, se_status
     ));
     box_footer();
+
+    // ダイアログが開いている場合は専用の操作ボックスを表示
+    if let Some(ref dialog) = snap.se_dialog {
+        let title = match dialog.target {
+            crate::ui::SeSelectionTarget::Z => "🎵 SE-Z (zキー) 効果音トラック選択",
+            crate::ui::SeSelectionTarget::X => "🎵 SE-X (xキー) 効果音トラック選択",
+        };
+        box_header(title);
+        box_line("");
+        box_line("  左右キー (← / →) で割り当てる効果音トラックを選択してください");
+        box_line("");
+        let track_display = format!("◀   Track  {:02} / {:02}   ▶", dialog.selected_track, dialog.total_tracks);
+        let track_pad = 75usize.saturating_sub(visual_width(&track_display));
+        let t_left = track_pad / 2;
+        let t_right = track_pad - t_left;
+        box_line(&format!("{:l$}{}{:r$}", "", track_display, "", l = t_left, r = t_right));
+        box_line("");
+        let ctrl_display = "[Space]: 試聴再生  |  [Enter]: 確定  |  [Esc]: 取消";
+        let ctrl_pad = 75usize.saturating_sub(visual_width(ctrl_display));
+        let c_left = ctrl_pad / 2;
+        let c_right = ctrl_pad - c_left;
+        box_line(&format!("{:l$}{}{:r$}", "", ctrl_display, "", l = c_left, r = c_right));
+        box_line("");
+        box_footer();
+    }
 
     // --- 1. Pulse 1 ---
     let p1 = &a.pulse1;
@@ -515,4 +540,7 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
         ));
         box_footer();
     }
+
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
 }

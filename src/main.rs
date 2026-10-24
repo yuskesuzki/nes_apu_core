@@ -18,7 +18,7 @@ use nes_apu_core::cli::CliArgs;
 use nes_apu_core::ui::{
     dashboard::{clear_screen, render_dashboard},
     trace::run_trace_mode,
-    SystemSnapshot,
+    SeDialogState, SeSelectionTarget, SystemSnapshot,
 };
 
 /// ターミナル raw モードの安全な復元用 RAII ガード
@@ -77,14 +77,112 @@ fn main() {
     let frame_interval = Duration::from_nanos(16_666_667); // 60fps
     let start_time = Instant::now();
     let mut frame_count = 0;
+    let mut dialog_state: Option<SeDialogState> = None;
 
     loop {
         let t0 = Instant::now();
 
-        // キーボード入力処理 (非ブロッキング: 1~5 キーで各チャンネルのミュート/発音切替)
+        // キーボード入力処理 (非ブロッキング: 1~5 キーで各チャンネルのミュート/発音切替, Shift+Z/X で SE 設定ダイアログ)
         while event::poll(Duration::from_millis(0)).unwrap_or(false) {
             if let Ok(Event::Key(key)) = event::read() {
                 if key.kind == KeyEventKind::Press {
+                    // Ctrl+C はいつでも終了
+                    if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                        return;
+                    }
+
+                    // ダイアログ表示中のキー操作
+                    if let Some(ref mut d) = dialog_state {
+                        let is_shift_z = key.code == KeyCode::Char('Z')
+                            || ((key.code == KeyCode::Char('z') || key.code == KeyCode::Char('Z'))
+                                && key.modifiers.contains(KeyModifiers::SHIFT));
+                        let is_shift_x = key.code == KeyCode::Char('X')
+                            || ((key.code == KeyCode::Char('x') || key.code == KeyCode::Char('X'))
+                                && key.modifiers.contains(KeyModifiers::SHIFT));
+
+                        if is_shift_z {
+                            let sys = shared_system.lock().unwrap();
+                            d.target = SeSelectionTarget::Z;
+                            d.selected_track = sys.se_track_z.unwrap_or(1);
+                            continue;
+                        }
+                        if is_shift_x {
+                            let sys = shared_system.lock().unwrap();
+                            d.target = SeSelectionTarget::X;
+                            d.selected_track = sys.se_track_x.unwrap_or(if d.total_tracks >= 2 { 2 } else { 1 });
+                            continue;
+                        }
+
+                        match key.code {
+                            KeyCode::Left => {
+                                d.selected_track = if d.selected_track <= 1 {
+                                    d.total_tracks
+                                } else {
+                                    d.selected_track - 1
+                                };
+                            }
+                            KeyCode::Right => {
+                                d.selected_track = if d.selected_track >= d.total_tracks {
+                                    1
+                                } else {
+                                    d.selected_track + 1
+                                };
+                            }
+                            KeyCode::Char(' ') => {
+                                // 選択中のトラックを試聴プレビュー再生
+                                let mut sys = shared_system.lock().unwrap();
+                                sys.trigger_se(Some(d.selected_track));
+                            }
+                            KeyCode::Enter => {
+                                // 確定
+                                let mut sys = shared_system.lock().unwrap();
+                                match d.target {
+                                    SeSelectionTarget::Z => sys.se_track_z = Some(d.selected_track),
+                                    SeSelectionTarget::X => sys.se_track_x = Some(d.selected_track),
+                                }
+                                dialog_state = None;
+                            }
+                            KeyCode::Esc | KeyCode::Char('q') => {
+                                // 取消（ダイアログを閉じる）
+                                dialog_state = None;
+                            }
+                            _ => {}
+                        }
+                        continue;
+                    }
+
+                    // 通常演奏時のキー操作
+                    let is_shift_z = key.code == KeyCode::Char('Z')
+                        || ((key.code == KeyCode::Char('z') || key.code == KeyCode::Char('Z'))
+                            && key.modifiers.contains(KeyModifiers::SHIFT));
+                    let is_shift_x = key.code == KeyCode::Char('X')
+                        || ((key.code == KeyCode::Char('x') || key.code == KeyCode::Char('X'))
+                            && key.modifiers.contains(KeyModifiers::SHIFT));
+
+                    if is_shift_z {
+                        let sys = shared_system.lock().unwrap();
+                        let total = sys.total_tracks;
+                        let cur = sys.se_track_z.unwrap_or(1);
+                        dialog_state = Some(SeDialogState {
+                            target: SeSelectionTarget::Z,
+                            selected_track: cur,
+                            total_tracks: total,
+                        });
+                        continue;
+                    }
+
+                    if is_shift_x {
+                        let sys = shared_system.lock().unwrap();
+                        let total = sys.total_tracks;
+                        let cur = sys.se_track_x.unwrap_or(if total >= 2 { 2 } else { 1 });
+                        dialog_state = Some(SeDialogState {
+                            target: SeSelectionTarget::X,
+                            selected_track: cur,
+                            total_tracks: total,
+                        });
+                        continue;
+                    }
+
                     match key.code {
                         KeyCode::Char('1') => {
                             let mut sys = shared_system.lock().unwrap();
@@ -120,14 +218,11 @@ fn main() {
                             let trk = sys.se_track_x;
                             sys.trigger_se(trk);
                         }
-                        KeyCode::Char('c') if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        KeyCode::Char('c') => {
                             let mut sys = shared_system.lock().unwrap();
                             sys.stop_se();
                         }
                         KeyCode::Char('q') | KeyCode::Esc => {
-                            return;
-                        }
-                        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                             return;
                         }
                         _ => {}
@@ -145,7 +240,7 @@ fn main() {
                 }
             }
             let elapsed_real = start_time.elapsed().as_secs_f64();
-            SystemSnapshot::capture(&sys, elapsed_real)
+            SystemSnapshot::capture(&sys, elapsed_real, dialog_state)
         };
 
         // ロックを解放した状態で画面を描画

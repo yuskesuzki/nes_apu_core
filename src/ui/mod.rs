@@ -17,6 +17,24 @@ pub use oscilloscope::{format_oscilloscope_panel, render_waveform_grid};
 pub use sparkline::{format_channel_sparkline, render_sparkline};
 pub use waveform_buffer::ChannelWaveformBuffer;
 
+/// SE トラック選択ダイアログの対象キー (Z または X)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SeSelectionTarget {
+    Z,
+    X,
+}
+
+/// SE トラック選択ダイアログの表示状態
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SeDialogState {
+    /// 選択対象のキー (Z または X)
+    pub target: SeSelectionTarget,
+    /// 現在ダイアログ上で選択されているトラック番号 (1-based)
+    pub selected_track: u8,
+    /// NSF の総トラック数
+    pub total_tracks: u8,
+}
+
 /// 描画用のシステム状態スナップショット（オーディオロックを最小限にするためクローンで保持）
 #[derive(Debug, Clone)]
 pub struct SystemSnapshot {
@@ -26,14 +44,20 @@ pub struct SystemSnapshot {
     pub vblank_cycle_counter: usize,
     pub elapsed_real_secs: f64,
     pub is_paused: bool,
+    pub total_tracks: u8,
     pub se_track_z: Option<u8>,
     pub se_track_x: Option<u8>,
     pub se_current_track: Option<u8>,
+    pub se_dialog: Option<SeDialogState>,
 }
 
 impl SystemSnapshot {
     /// 現在の `ApuSystem` から描画用スナップショットを抽出します
-    pub fn capture(sys: &ApuSystem, elapsed_real_secs: f64) -> Self {
+    pub fn capture(
+        sys: &ApuSystem,
+        elapsed_real_secs: f64,
+        se_dialog: Option<SeDialogState>,
+    ) -> Self {
         Self {
             apu: sys.apu.clone(),
             mode_title: sys.source.title(),
@@ -41,9 +65,11 @@ impl SystemSnapshot {
             vblank_cycle_counter: sys.vblank_cycle_counter,
             elapsed_real_secs,
             is_paused: sys.paused,
+            total_tracks: sys.total_tracks,
             se_track_z: sys.se_track_z,
             se_track_x: sys.se_track_x,
             se_current_track: sys.se_current_track,
+            se_dialog,
         }
     }
 }
