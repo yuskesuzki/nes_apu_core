@@ -6,14 +6,11 @@ use crate::apu::NTSC_CPU_CLOCK;
 use crate::source::format_note;
 use crate::ui::SystemSnapshot;
 
-#[cfg(not(target_os = "windows"))]
-const CLEAR_SCREEN: &str = "\x1b[2J\x1b[H";
-#[cfg(target_os = "windows")]
-const CLEAR_SCREEN: &str = "";
-
-/// 画面全体をクリアします
+/// 画面全体をクリアし、カーソルを左上に移動します
 pub fn clear_screen() {
-    print!("{}", CLEAR_SCREEN);
+    print!("\x1b[2J\x1b[H");
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
 }
 
 /// ANSI エスケープシーケンスを除去し、Unicode East Asian Width に基づく実表示桁数を算出します
@@ -553,6 +550,9 @@ pub fn render_dashboard(snap: &SystemSnapshot) {
         ));
         box_footer();
     }
+
+    // 行数が短くなった場合に画面下部に残る古い描画ゴミを消去 (カーソル位置〜画面末尾クリア)
+    print!("\x1b[J");
 
     use std::io::Write;
     let _ = std::io::stdout().flush();

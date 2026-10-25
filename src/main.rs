@@ -164,6 +164,7 @@ fn main() {
                                     TrackDialogTarget::X => sys.se_track_x = Some(d.selected_track),
                                 }
                                 dialog_state = None;
+                                clear_screen();
                             }
                             KeyCode::Esc | KeyCode::Char('q') => {
                                 // 取消（ダイアログを閉じる）
@@ -173,6 +174,7 @@ fn main() {
                                     sys.switch_bgm_track(d.original_track);
                                 }
                                 dialog_state = None;
+                                clear_screen();
                             }
                             _ => {}
                         }
@@ -200,6 +202,7 @@ fn main() {
                             total_tracks: total,
                             original_track: cur,
                         });
+                        clear_screen();
                         continue;
                     }
 
@@ -213,6 +216,7 @@ fn main() {
                             total_tracks: total,
                             original_track: cur,
                         });
+                        clear_screen();
                         continue;
                     }
 
@@ -226,6 +230,7 @@ fn main() {
                             total_tracks: total,
                             original_track: cur,
                         });
+                        clear_screen();
                         continue;
                     }
 
