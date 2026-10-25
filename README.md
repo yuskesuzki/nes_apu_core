@@ -96,3 +96,15 @@ cargo test
 ```
 
 全 50 項目のハードウェア＆ドライバ検証テスト（SE ハイジャック調停, Mute/Solo, Driver, Filter, DMC, Status $4015, Frame Counter, Envelope, Sweep, Length Counter, Linear Counter, Pulse, Triangle, Noise）がすべて PASS します。
+
+---
+
+## 今後のロードマップ / 予定タスク (Roadmap & Tasks)
+
+- [ ] **Ratatui (https://ratatui.rs) を用いた TUI ダッシュボードの全面リファクタリング**
+  - 現在の ANSI エスケープシーケンスによる自前ターミナル描画から、Rust のモダンな TUI ライブラリ [Ratatui](https://ratatui.rs) へ移行。
+  - **期待される改善点**:
+    - **ダブルバッファリング / 差分描画**: 画面チラつき（フリッカー）や下部余白の描画残骸の完全解消。
+    - **レスポンシブな画面分割**: `Layout` ウィジェットによるターミナルサイズに応じた自動レイアウト調整。
+    - **標準ポップアップ (`Clear` ウィジェット)**: BGM / SE 選択ダイアログの美しいモーダルオーバーレイ化。
+    - **波形・メーターの統合**: Ratatui 標準の `Sparkline` / `Gauge` / `Chart` ウィジェットを活用した、リアルタイム波形モニター（オシロスコープ）のダッシュボード内蔵。
